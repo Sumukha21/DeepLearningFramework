@@ -1,0 +1,132 @@
+gpu_device: "-1"
+
+variables:
+  save_folder: C:/Users/Sumukha/Desktop/Projects/Results/cat_vs_dog/classifier_vgg16/
+  save_path_instance: $save_folder/$timestamp
+  log_save_path: $save_path_instance/Logs/
+  model_save_path: $save_path_instance/Model_Weights/
+
+experiment:
+  control_flow:
+    model_builder:
+#      function: Models.vgg16.vgg16_classifier
+#      params:
+#        input_dim: [224, 224, 3]
+#        no_classes: 2
+#        weights_path: "C:/Users/Sumukha/Desktop/Projects/Imagenet_weights/vgg16_weights_tf_dim_ordering_tf_kernels.h5"
+#        last_layer_weights: False
+#        weights_by_name: True
+
+#      function: Models.resnet50.resnet50_classifier
+#      params:
+#        input_dim: [224, 224, 3]
+#        no_classes: 2
+#        weights_path: "C:/Users/Sumukha/Desktop/Projects/Imagenet_weights/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5"
+#        last_layer_weights: False
+#        weights_by_name: True
+
+      function: Models.custom_classifier.custom_classifier
+      params:
+        input_dim: [256, 256, 3]
+        no_classes: 2
+
+    training_data_generator:
+      factory: Data_Generators.data_generator_classifier.DataGenerator
+      params:
+        batch_size: 5
+        img_list_path: C:/Users/Sumukha/Desktop/Projects/Data/dogs-vs-cats/Lists/train_list_from_all_train.txt
+        processing_graph:
+          img_reader:
+            function: Preprocessing.image.image_reader
+            params:
+              image_path: external.img
+              image_folder: C:/Users/Sumukha/Desktop/Projects/Data/dogs-vs-cats/train/train/
+              flip: True
+          img_resize:
+            function: Preprocessing.image.image_resize
+            params:
+              target_size: [256, 256]
+            inputs:
+              img: img_reader
+          img_normalize:
+            function: Preprocessing.image.image_normalize
+            inputs:
+              img: img_resize
+          lbl_generator:
+            function: Preprocessing.label.generate_label_name_cat_dog
+            params:
+              startswith_key: "dog"
+              image_name: external.img
+          lbl_one_hot_encoder:
+            function: Preprocessing.label.one_hot_encoder
+            params:
+              no_classes: 2
+            inputs:
+              label: lbl_generator
+          outputs:
+            img: img_normalize
+            lbl: lbl_one_hot_encoder
+
+    validation_data_generator:
+      factory: Data_Generators.data_generator_classifier.DataGenerator
+      params:
+        batch_size: 1
+        img_list_path: C:/Users/Sumukha/Desktop/Projects/Data/dogs-vs-cats/Lists/valid_list_from_all_train.txt
+        processing_graph:
+          img_reader:
+            function: Preprocessing.image.image_reader
+            params:
+              image_path: external.img
+              image_folder: C:/Users/Sumukha/Desktop/Projects/Data/dogs-vs-cats/train/train/
+              flip: True
+          img_resize:
+            function: Preprocessing.image.image_resize
+            params:
+              target_size: [256, 256]
+            inputs:
+              img: img_reader
+          img_normalize:
+            function: Preprocessing.image.image_normalize
+            inputs:
+              img: img_resize
+          lbl_generator:
+            function: Preprocessing.label.generate_label_name_cat_dog
+            params:
+              startswith_key: "dog"
+              image_name: external.img
+          lbl_one_hot_encoder:
+            function: Preprocessing.label.one_hot_encoder
+            params:
+              no_classes: 2
+            inputs:
+              label: lbl_generator
+          outputs:
+            img: img_normalize
+            lbl: lbl_one_hot_encoder
+
+    Trainer:
+      factory: Training.standard_training.Training
+      params:
+        epochs: 1000
+        optimizer:
+          factory: tensorflow.keras.optimizers.Adam
+          params:
+            learning_rate: 0.0001
+        loss:
+          - function: Training.losses.categorical_cross_entropy_loss
+            params:
+              dummy: 1e-6
+        callbacks:
+          - function: Training.callbacks.model_checkpoint_initializer
+            params:
+              save_folder: $model_save_path
+              save_path: model_weights.{epoch:03d}-{val_loss:.6f}.hdf5
+              save_best_only: True
+#          - factory: tensorflow.keras.callbacks.TensorBoard
+#            params:
+#              log_dir: $log_save_path/Tensorboard_Logs
+#              histogram_freq: 1
+      inputs:
+        model: model_builder
+        training_data_generator: training_data_generator
+        validation_data_generator: validation_data_generator

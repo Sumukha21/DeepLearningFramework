@@ -1,0 +1,44 @@
+model_builder:
+#  function: Models.vgg16.vgg16_classifier
+#  params:
+##    input_dim: [256, 256, 3]
+#    input_dim: [224, 224, 3]
+#    no_classes: 2
+##    weights_path: C:/Users/Sumukha/Desktop/Projects/Results/cat_vs_dog/classifier_vgg16/20201121-144642/Model_Weights/model_weights.001-0.693165.hdf5
+#    weights_path: C:/Users/Sumukha/Desktop/Projects/Results/cat_vs_dog/classifier_vgg16/20201125-111346/Model_Weights/model_weights.001-0.693141.hdf5
+
+  function: Models.custom_classifier.custom_classifier
+  params:
+    input_dim: [256, 256, 3]
+    no_classes: 2
+    weights: "C:/Users/Sumukha/Desktop/Projects/Results/cat_vs_dog/classifier_vgg16/20201127-031417/Model_Weights/model_weights.002-0.768895.hdf5"
+
+img_resize:
+  function: Preprocessing.image.image_resize
+  params:
+    target_size: [256, 256]
+#    target_size: [224, 224]
+    img: external.image
+
+img_normalize:
+  function: Preprocessing.image.image_normalize
+  inputs:
+    img: img_resize
+
+prediction_generator:
+  function: Utils.utils.inference_generator
+  inputs:
+    model: model_builder
+    img: img_normalize
+
+create_overlay:
+  function: Postprocessing.prediction.overlay_classifier
+  params:
+    class_mapping: {0: "cat", 1: "dog"}
+    flip: True
+  inputs:
+    image: img_resize
+    prediction: prediction_generator
+
+outputs:
+  - create_overlay
